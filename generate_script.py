@@ -12,14 +12,16 @@ def read_tsv(infp):
 def ts_to_seconds(ts):
 	seconds = 0
 	for atom in ts.split(':'):
-		atom = int(atom)
+		atom = float(atom)
 		seconds = seconds * 60 + atom
 	return seconds
 
 def main():
 	ap = argparse.ArgumentParser()
 	ap.add_argument('filename')
-	ap.add_argument('-v', '--video', required=True)
+	ap.add_argument('-i', '--input', required=True)
+	ap.add_argument('-c', '--conversion', default='-crf 23 -vf yadif -preset medium -tune film -ac 2')
+	ap.add_argument('-x', '--extension', default='mp4')
 	args = ap.parse_args()
 	with open(args.filename) as infp:
 		data = list(read_tsv(infp))
@@ -27,11 +29,12 @@ def main():
 		start = ts_to_seconds(datum['start'])
 		end = ts_to_seconds(datum['end'])
 		duration = end - start
-		cmd = 'ffmpeg -ss {start} -i {video} -t {duration} -crf 23 -vf yadif -preset medium -tune film -ac 2 {output}'.format(
-			video=args.video,
+		cmd = 'ffmpeg -ss {start} -i {input} -t {duration} {conversion} {output}'.format(
+			input=args.input,
 			start=start,
 			duration=duration,
-			output=('%s.mp4' % datum['title']),
+			conversion=args.conversion,
+			output=('%s.%s' % (datum['title'], args.extension)),
 		)
 		print(cmd)
 
