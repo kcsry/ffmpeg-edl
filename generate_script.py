@@ -6,6 +6,8 @@ def read_tsv(infp):
     headers = None
     for i, l in enumerate(infp):
         l = l.strip().split()
+        if l[0].startswith("#"):
+            continue
         if i == 0:
             headers = l
             continue
