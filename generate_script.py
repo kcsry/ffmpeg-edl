@@ -29,7 +29,7 @@ def main():
     ap.add_argument(
         '-c',
         '--conversion',
-        default='-crf 23 -vf yadif -preset medium -tune film -ac 2',
+        default='-crf 23 -vf yadif -preset medium -tune film -ac 2 -ab 256k',
     )
     ap.add_argument('-x', '--extension', default='mp4')
 
