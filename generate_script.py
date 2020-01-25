@@ -39,6 +39,7 @@ def main():
     for datum in data:
         start = ts_to_seconds(datum['start'])
         end = ts_to_seconds(datum['end'])
+        duration = end - start
         cmd = 'ffmpeg -ss {start} -i {input} -t {duration} {conversion} {output}'.format(
             input=shlex.quote(args.input),
             start=start,
