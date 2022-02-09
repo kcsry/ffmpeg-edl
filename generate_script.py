@@ -2,7 +2,7 @@ import argparse
 import ast
 import shlex
 import sys
-from typing import Optional
+from typing import Optional, List, Tuple
 
 
 def read_tsv(infp, separator=None):
@@ -25,19 +25,24 @@ def ts_to_seconds(ts) -> float:
     return seconds
 
 
-def read_cue(infp):
+def read_cue(infp) -> Tuple[Optional[str], List[dict]]:
+    input_file = None
     tracks = []
     curr_track = None
     for line in infp:
         line = line.strip()
-        word, _, rest = line.partition(" ")
-        if word == "TRACK":
+        bits = shlex.split(line)  # shell-esque enough! :)
+        word = bits.pop(0)
+        if word == "FILE":
+            input_file = bits.pop(0)
+        elif word == "TRACK":
             curr_track = {}
             tracks.append(curr_track)
         elif word == "TITLE":
-            curr_track["title"] = ast.literal_eval(rest)
+            curr_track["title"] = bits.pop(0)
         elif word == "INDEX":
-            im, _, timestamp = rest.partition(" ")
+            im = bits.pop(0)
+            timestamp = bits.pop(0)
             if im == "01":
                 curr_track["start"] = ts_to_seconds(timestamp)
             else:
@@ -47,7 +52,7 @@ def read_cue(infp):
     for i in range(1, len(tracks)):
         tracks[i - 1]["end"] = tracks[i]["start"]
 
-    return tracks
+    return (input_file, tracks)
 
 
 def get_duration(datum, start: float) -> Optional[float]:
@@ -64,7 +69,7 @@ def get_duration(datum, start: float) -> Optional[float]:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("filename")
-    ap.add_argument("-i", "--input", required=True)
+    ap.add_argument("-i", "--input", default=None)
     ap.add_argument("--tab-separated", default=False, action="store_true")
     ap.add_argument(
         "-c",
@@ -72,17 +77,19 @@ def main():
         default="-crf 23 -vf yadif -preset medium -tune film -ac 2 -ab 256k",
     )
     ap.add_argument("-x", "--extension", default="mp4")
-
     args = ap.parse_args()
+    input_name = args.input
+    conversion_args = shlex.split(args.conversion)
+
     with open(args.filename) as infp:
         if args.filename.endswith(".cue"):
-            data = list(read_cue(infp))
+            cue_input_file, data = read_cue(infp)
+            input_name = input_name or cue_input_file
         else:
             separator = "\t" if args.tab_separated else None
             data = list(read_tsv(infp, separator=separator))
-
-    conversion_args = shlex.split(args.conversion)
-    input_name = args.input
+    if not input_name:
+        ap.error("No input file specified (or read from CUE)")
     for datum in data:
         start = ts_to_seconds(datum["start"])
         duration = get_duration(datum, start)
