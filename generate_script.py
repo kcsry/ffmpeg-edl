@@ -2,10 +2,10 @@ import argparse
 import shlex
 
 
-def read_tsv(infp):
+def read_tsv(infp, separator=None):
     headers = None
     for i, l in enumerate(infp):
-        l = l.strip().split()
+        l = l.strip().split(separator)
         if l[0].startswith("#"):
             continue
         if i == 0:
@@ -26,6 +26,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('filename')
     ap.add_argument('-i', '--input', required=True)
+    ap.add_argument('--tab-separated', default=False, action='store_true')
     ap.add_argument(
         '-c',
         '--conversion',
@@ -35,7 +36,8 @@ def main():
 
     args = ap.parse_args()
     with open(args.filename) as infp:
-        data = list(read_tsv(infp))
+        separator = ('\t' if args.tab_separated else None)
+        data = list(read_tsv(infp, separator=separator))
     for datum in data:
         start = ts_to_seconds(datum['start'])
         end = ts_to_seconds(datum['end'])
