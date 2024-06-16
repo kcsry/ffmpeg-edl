@@ -1,5 +1,5 @@
 import argparse
-import ast
+import os
 import shlex
 import sys
 from typing import Optional, List, Tuple
@@ -7,14 +7,14 @@ from typing import Optional, List, Tuple
 
 def read_tsv(infp, separator=None):
     headers = None
-    for i, l in enumerate(infp):
-        l = l.strip().split(separator)
-        if l[0].startswith("#"):
+    for i, line in enumerate(infp):
+        line = line.strip().split(separator)
+        if line[0].startswith("#"):
             continue
         if i == 0:
-            headers = l
+            headers = line
             continue
-        yield dict(zip(headers, l))
+        yield dict(zip(headers, line))
 
 
 def ts_to_seconds(ts) -> float:
@@ -74,12 +74,20 @@ def main():
     ap.add_argument(
         "-c",
         "--conversion",
-        default="-crf 23 -vf yadif -preset medium -tune film -ac 2 -ab 256k",
+        required=True,
+        help=(
+            "FFmpeg conversion arguments; consider e.g. "
+            "`-crf 23 -vf yadif -preset medium -tune film -ac 2 -ab 256k` for pre-interlaced content, "
+            "or `-c copy -movflags +faststart` to just copy the input"
+        ),
     )
     ap.add_argument("-x", "--extension", default="mp4")
+    ap.add_argument("-o", "--output-directory", default=None)
     args = ap.parse_args()
     input_name = args.input
     conversion_args = shlex.split(args.conversion)
+    if args.output_directory:
+        os.makedirs(args.output_directory, exist_ok=True)
 
     with open(args.filename) as infp:
         if args.filename.endswith(".cue"):
@@ -94,6 +102,8 @@ def main():
         start = ts_to_seconds(datum["start"])
         duration = get_duration(datum, start)
         output_name = f'{datum["title"]}.{args.extension}'
+        if args.output_directory:
+            output_name = os.path.join(args.output_directory, output_name)
         bits = [
             "ffmpeg",
             "-ss",
@@ -102,12 +112,7 @@ def main():
             input_name,
         ]
         if duration is not None:
-            bits.extend(
-                [
-                    "-t",
-                    str(duration),
-                ]
-            )
+            bits.extend(["-t", str(duration)])
         bits.extend(conversion_args)
         bits.append(output_name)
         cmd = shlex.join(bits)
